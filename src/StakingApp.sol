@@ -66,12 +66,15 @@ contract StakingApp is Ownable {
         uint256 elapsePeriod = block.timestamp - depositTime[msg.sender];
         require(elapsePeriod >= stakingPeriod, "Staking period has not yet elapsed. Need to wait.");
 
-        depositTime[msg.sender] = block.timestamp;
+        uint256 periods = elapsePeriod / stakingPeriod; 
+        uint256 totalReward = periods * rewardPerPeriod;
 
-        (bool success, ) = msg.sender.call{value: rewardPerPeriod}("");
+        depositTime[msg.sender] += periods * stakingPeriod;
+
+        (bool success, ) = msg.sender.call{value: totalReward}("");
         require(success, "Failed to send reward");
 
-        emit ClaimRewards(msg.sender, rewardPerPeriod);
+        emit ClaimRewards(msg.sender, totalReward);
     }
 
     receive() external payable onlyOwner {
