@@ -27,6 +27,14 @@ contract StakingApp is Ownable {
     event ClaimRewards(address indexed user, uint256 rewardAmount);
     event EtherSend(uint256 amount);
 
+    /**
+    * @notice Initializes the staking contract with token, owner, and staking parameters
+    * @param _tokenAddress The address of the ERC20 token used for staking
+    * @param _owner The address of the contract owner
+    * @param _stakingPeriod The time in seconds required to elapse for a reward period
+    * @param _fixedStakingAmount The exact amount of tokens required to stake
+    * @param _rewardPerPeriod The amount of ETH rewarded per staking period
+    */
     constructor (
         address _tokenAddress, 
         address _owner, 
@@ -40,15 +48,27 @@ contract StakingApp is Ownable {
         rewardPerPeriod = _rewardPerPeriod;
     }
 
+    /**
+    * @notice Updates the required time for a staking period
+    * @param _stakingPeriod The new staking period in seconds
+    */
     function setStakingPeriod(uint64 _stakingPeriod) external onlyOwner { 
         stakingPeriod = _stakingPeriod;
         emit ChangeStakingPeriod(_stakingPeriod);
     }
 
+    /**
+    * @notice Updates the fixed token amount required to stake
+    * @param _fixedStakingAmount The new fixed staking amount
+    */
     function setFixedStakingAmount(uint96 _fixedStakingAmount) external onlyOwner { 
         fixedStakingAmount = _fixedStakingAmount;
     }
 
+    /**
+    * @notice Deposits the fixed staking amount into the contract
+    * @param _amount The amount of tokens to stake
+    */
     function deposit(uint96 _amount) external { 
         if (_amount != fixedStakingAmount) revert InvalidStakingAmount();
         if (usersBalance[msg.sender] != 0) revert ActiveStakeExists();
@@ -62,6 +82,10 @@ contract StakingApp is Ownable {
         emit Deposit(msg.sender, _amount);
     }
 
+    /**
+    * @notice Withdraws the staked tokens
+    * @dev Withdrawing before claiming rewards will forfeit any pending rewards
+    */
     function withdraw() external { 
         uint256 balance = usersBalance[msg.sender];
         if (balance == 0) revert NoActiveStake();
@@ -74,6 +98,9 @@ contract StakingApp is Ownable {
         emit Withdraw(msg.sender, balance);
     }
 
+    /**
+    * @notice Claims the accumulated ETH rewards based on the elapsed staking periods
+    */
     function claimRewards() external { 
         if (usersBalance[msg.sender] == 0) revert NoActiveStake();
 
@@ -91,9 +118,10 @@ contract StakingApp is Ownable {
         emit ClaimRewards(msg.sender, totalReward);
     }
 
+    /**
+    * @notice Allows the contract to receive ETH to fund the reward pool
+    */
     receive() external payable {
         emit EtherSend(msg.value);
     }
-
-    
 }
