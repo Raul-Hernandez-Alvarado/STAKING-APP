@@ -11,7 +11,7 @@ contract StakingTokenTest is Test {
     StakingToken stakingToken;
     string name = "Staking Token"; 
     string symbol = "STK";
-    address randomUser = vm.addr(1);
+    address randomUser = makeAddr("RandomUser");
 
     function setUp() public {
         stakingToken= new StakingToken(name, symbol);
@@ -23,7 +23,7 @@ contract StakingTokenTest is Test {
         uint256 balanceBefore = IERC20(address(stakingToken)).balanceOf(randomUser);
         stakingToken.mint(amount);
         uint256 balanceAfter = IERC20(address(stakingToken)).balanceOf(randomUser); 
-        assert(balanceAfter == balanceBefore + amount);
+        assertEq(balanceAfter, balanceBefore + amount);
         vm.stopPrank(); 
     }
 
