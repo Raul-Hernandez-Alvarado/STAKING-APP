@@ -13,15 +13,14 @@ contract StakingAppTest is Test {
     StakingApp stakingApp;
     StakingToken stakingToken;
 
-    address owner = vm.addr(1);
-    uint256 stakingPeriord = 1 days;
-    uint256 fixedStakingAmount = 10;
-    uint256 rewardPerPeriod = 1 ether;
-
+    address owner = makeAddr("owner");
+    uint64 stakingPeriord = 1 days;
+    uint96 fixedStakingAmount = 10;
+    uint128 rewardPerPeriod = 1 ether;
 
     function setUp() public {
         stakingToken = new StakingToken("Staking Token", "STK");
-        stakingApp = new StakingApp(address(stakingToken), owner, 1 days, fixedStakingAmount, rewardPerPeriod);
+        stakingApp = new StakingApp(address(stakingToken), owner, stakingPeriord, fixedStakingAmount, rewardPerPeriod);
     }
 
     function testStakingTokenCorrectDeployed() public view {
@@ -34,7 +33,7 @@ contract StakingAppTest is Test {
         assertEq(stakingApp.rewardPerPeriod(), rewardPerPeriod);
     }
 
-    function testSetStakingPeriod(uint256 newPeriod) public {
+    function testSetStakingPeriod(uint64 newPeriod) public {
         vm.prank(owner);
 
         stakingApp.setStakingPeriod(newPeriod);
@@ -42,14 +41,15 @@ contract StakingAppTest is Test {
         assertEq(stakingApp.stakingPeriod(), newPeriod);
     }
 
-    function testSetStakingPeriodNotOwner(uint256 newPeriod) public {
-        vm.prank(vm.addr(2));
+    function testSetStakingPeriodNotOwner(uint64 newPeriod) public {
+        address user = makeAddr("user2");
+        vm.prank(user);
 
         vm.expectRevert();
         stakingApp.setStakingPeriod(newPeriod);
     }
 
-    function testSetFixedStakingAmount(uint256 newAmount) public {
+    function testSetFixedStakingAmount(uint96 newAmount) public {
         vm.prank(owner);
 
         stakingApp.setFixedStakingAmount(newAmount);
@@ -57,8 +57,9 @@ contract StakingAppTest is Test {
         assertEq(stakingApp.fixedStakingAmount(), newAmount);
     }
 
-    function testSetFixedStakingAmountNotOwner(uint256 newAmount) public {
-        vm.prank(vm.addr(2));
+    function testSetFixedStakingAmountNotOwner(uint96 newAmount) public {
+        address user = makeAddr("user2");
+        vm.prank(user);
 
         vm.expectRevert();
         stakingApp.setFixedStakingAmount(newAmount);
@@ -77,30 +78,34 @@ contract StakingAppTest is Test {
         vm.stopPrank();
     }
 
-    function testReceiveEtherNotOwner(uint256 amountToSend) public {
-        vm.startPrank(vm.addr(2));
-        vm.deal(vm.addr(2), amountToSend);
+    function testReceiveEtherAnyUser(uint256 amountToSend) public {
+        address user = makeAddr("user2");
+        vm.startPrank(user);
+        vm.deal(user, amountToSend);
 
-        vm.expectRevert();
+        uint256 balanceBefore = address(stakingApp).balance;
         (bool success, ) = address(stakingApp).call{value: amountToSend}("");
+        uint256 balanceAfter = address(stakingApp).balance;
+        require(success, "Failed to send Ether to the contract");
         
+        assertEq(balanceAfter, balanceBefore + amountToSend);
         vm.stopPrank();
     }
 
-    function testDepositIncorrectAmount(uint256 amount) external {
+    function testDepositIncorrectAmount(uint96 amount) external {
         if(amount == fixedStakingAmount) {
             return;
         }
-        vm.expectRevert("Only the fixed staking amount can be staked at a time");
+        vm.expectRevert(StakingApp.InvalidStakingAmount.selector);
         stakingApp.deposit(amount);
     }
 
     function testDepositCorrect() external {
-        address user = vm.addr(2);
+        address user = makeAddr("user");
         vm.startPrank(user);
         assertEq(stakingApp.usersBalance(user), 0);
 
-        uint256 _fixedStakingAmount = stakingApp.fixedStakingAmount();
+        uint96 _fixedStakingAmount = uint96(stakingApp.fixedStakingAmount());
         stakingToken.mint(_fixedStakingAmount);
 
         stakingToken.approve(address(stakingApp), _fixedStakingAmount);
@@ -112,27 +117,27 @@ contract StakingAppTest is Test {
     }
 
     function testUserCannotDepositTwice() external {
-        address user = vm.addr(2);
+        address user = makeAddr("user");
         vm.startPrank(user);
 
-        uint256 _fixedStakingAmount = stakingApp.fixedStakingAmount();
+        uint96 _fixedStakingAmount = uint96(stakingApp.fixedStakingAmount());
         stakingToken.mint(_fixedStakingAmount * 2);
 
         stakingToken.approve(address(stakingApp), _fixedStakingAmount * 2);
 
         stakingApp.deposit(_fixedStakingAmount);
 
-        vm.expectRevert("You already have an active stake");
+        vm.expectRevert(StakingApp.ActiveStakeExists.selector);
         stakingApp.deposit(_fixedStakingAmount);
     }
 
     function testWithdrawWithoutActiveStake() external {
-        address user = vm.addr(2);
+        address user = makeAddr("user");
         vm.startPrank(user);
         uint256 userBalanceBefore = stakingApp.usersBalance(user);
         uint256 userBalanceTokenBefore = stakingToken.balanceOf(user);
 
-        vm.expectRevert("You don't have an active stake to withdraw");
+        vm.expectRevert(StakingApp.NoActiveStake.selector);
         stakingApp.withdraw();
 
         uint256 userBalanceAfter = stakingApp.usersBalance(user);
@@ -142,10 +147,10 @@ contract StakingAppTest is Test {
     }
 
     function testWithdrawCorrect() external {
-        address user = vm.addr(2);
+        address user = makeAddr("user");
         vm.startPrank(user);
 
-        uint256 _fixedStakingAmount = stakingApp.fixedStakingAmount();
+        uint96 _fixedStakingAmount = uint96(stakingApp.fixedStakingAmount());
         stakingToken.mint(_fixedStakingAmount);
 
         stakingToken.approve(address(stakingApp), _fixedStakingAmount);
@@ -160,33 +165,33 @@ contract StakingAppTest is Test {
     }
 
     function testClaimRewardsWithoutBalance() external {
-        address user = vm.addr(2);
+        address user = makeAddr("user");
         vm.startPrank(user);
 
-        vm.expectRevert("You don't have an active stake to claim rewards from");
+        vm.expectRevert(StakingApp.NoActiveStake.selector);
         stakingApp.claimRewards();
     }
 
     function testClaimRewardsIncorrectElapsedTime() external {
-        address user = vm.addr(2);
+        address user = makeAddr("user");
         vm.startPrank(user);
 
-        uint256 _fixedStakingAmount = stakingApp.fixedStakingAmount();
+        uint96 _fixedStakingAmount = uint96(stakingApp.fixedStakingAmount());
         stakingToken.mint(_fixedStakingAmount);
 
         stakingToken.approve(address(stakingApp), _fixedStakingAmount);
 
         stakingApp.deposit(_fixedStakingAmount);
 
-        vm.expectRevert("Staking period has not yet elapsed. Need to wait.");
+        vm.expectRevert(StakingApp.StakingPeriodNotElapsed.selector);
         stakingApp.claimRewards();
     }
 
     function testClaimRewarWithoutEther() external {
-        address user = vm.addr(2);
+        address user = makeAddr("user");
         vm.startPrank(user);
 
-        uint256 _fixedStakingAmount = stakingApp.fixedStakingAmount();
+        uint96 _fixedStakingAmount = uint96(stakingApp.fixedStakingAmount());
         stakingToken.mint(_fixedStakingAmount);
 
         stakingToken.approve(address(stakingApp), _fixedStakingAmount);
@@ -195,15 +200,15 @@ contract StakingAppTest is Test {
 
         vm.warp(block.timestamp + stakingApp.stakingPeriod());
 
-        vm.expectRevert("Failed to send reward");
+        vm.expectRevert(StakingApp.RewardTransferFailed.selector);
         stakingApp.claimRewards();
     }
 
     function testClaimRewardsCorrect() external {
-        address user = vm.addr(2);
+        address user = makeAddr("user");
         vm.startPrank(user);
 
-        uint256 _fixedStakingAmount = stakingApp.fixedStakingAmount();
+        uint96 _fixedStakingAmount = uint96(stakingApp.fixedStakingAmount());
         stakingToken.mint(_fixedStakingAmount);
 
         stakingToken.approve(address(stakingApp), _fixedStakingAmount);
@@ -232,30 +237,34 @@ contract StakingAppTest is Test {
     }
 
     function testDepositTransferFromFails() external {
-        address user = vm.addr(2);
+        address user = makeAddr("user");
 
-        uint256 _fixedStakingAmount = stakingApp.fixedStakingAmount();
+        uint96 _fixedStakingAmount = uint96(stakingApp.fixedStakingAmount());
         FailToken failToken = new FailToken();
-        StakingApp appWithFailToken = new StakingApp(address(failToken), owner, 1 days, fixedStakingAmount, rewardPerPeriod);
+        StakingApp appWithFailToken = new StakingApp(address(failToken), owner, stakingPeriord, fixedStakingAmount, rewardPerPeriod);
 
         vm.startPrank(user);
-        vm.expectRevert("Failed to transfer staking token");
+        vm.expectRevert(StakingApp.TransferFailed.selector);
         appWithFailToken.deposit(_fixedStakingAmount);
 
         vm.stopPrank();
     }
 
     function testWithdrawTransferFails() external {
-        address user = vm.addr(2);
+        address user = makeAddr("user");
 
-        uint256 _fixedStakingAmount = stakingApp.fixedStakingAmount();
+        uint96 _fixedStakingAmount = uint96(stakingApp.fixedStakingAmount());
         FailToken failToken = new FailToken();
-        StakingApp appWithFailToken = new StakingApp(address(failToken), owner, 1 days, fixedStakingAmount, rewardPerPeriod);
+        StakingApp appWithFailToken = new StakingApp(address(failToken), owner, stakingPeriord, fixedStakingAmount, rewardPerPeriod);
 
         vm.startPrank(user);
+        
+        // Se asume que en FailToken se simula el exito del deposito para que la prueba de withdraw avance hasta el revert correcto
+        vm.mockCall(address(failToken), abi.encodeWithSelector(IERC20.transferFrom.selector), abi.encode(true));
         appWithFailToken.deposit(_fixedStakingAmount);
+        vm.clearMockedCalls();
 
-        vm.expectRevert("Failed to transfer staking token");
+        vm.expectRevert(StakingApp.TransferFailed.selector);
         appWithFailToken.withdraw();
 
         vm.stopPrank();
