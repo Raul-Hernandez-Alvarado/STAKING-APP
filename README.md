@@ -1,15 +1,15 @@
-# 🥩 Staking App - Smart Contracts
+# Staking App - Smart Contracts
 
 This repository contains the smart contracts for a decentralized Staking application. The project is built and optimized using the **Foundry** framework and leverages **OpenZeppelin Contracts** for security and standardization.
 
-## 🛠 Tech Stack
+## Tech Stack
 
 *   **Solidity**
 *   **Foundry** (Forge, Cast, Anvil) for compilation, testing, and deployment.
 *   **OpenZeppelin Contracts** for secure and standardized implementations (ERC20, ERC4626, ReentrancyGuard, etc.).
 *   **GitHub Actions** for Continuous Integration (CI) and automated testing.
 
-## 📦 Prerequisitese
+## Prerequisitese
 
 You will need to have [Foundry](https://getfoundry.sh/) installed on your local machine.
 
@@ -18,7 +18,7 @@ curl -L https://foundry.paradigm.xyz | bash
 foundryup
 ```
 
-## 🚀 Installation & Setup
+## Installation & Setup
 
 1. Clone the repository and navigate into the project directory:
    ```bash
@@ -36,7 +36,7 @@ foundryup
    forge build
    ```
 
-## 🧪 Testing & Security
+## Testing & Security
 
 The project uses the Foundry testing environment to ensure the robustness of the contracts.
 
@@ -50,7 +50,7 @@ To view detailed traces in the terminal during debugging (ideal for auditing int
 forge test -vvvv
 ```
 
-## ⛽ Gas Optimization
+## Gas Optimization
 
 To generate a gas consumption report for the contracts and evaluate optimizations (such as efficient loop usage, `unchecked` blocks, or storage variables):
 ```bash
@@ -58,7 +58,7 @@ forge snapshot
 ```
 This will generate (or update) the `.gas-snapshot` file, which is highly useful for keeping strict track of function consumption.
 
-## 📂 Project Structure
+## Project Structure
 
 *   `src/`: Main source code of the smart contracts.
 *   `test/`: Test scripts written in Solidity using `forge-std`.
@@ -66,5 +66,5 @@ This will generate (or update) the `.gas-snapshot` file, which is highly useful 
 *   `lib/`: External dependencies managed by git submodules (`forge-std` and `openzeppelin-contracts`).
 *   `.github/workflows/`: CI/CD pipelines (contains `test.yml` to run tests automatically on every push/PR).
 
-## 📄 License
+## License
 
